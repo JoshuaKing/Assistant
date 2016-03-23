@@ -4,28 +4,37 @@ package log;
  * Created by Josh on 17/02/2016.
  */
 public class Logger {
-    private static final int LEVEL = 0;
+    private final int level;
 
-    public static void debug(String s) {
-        if (LEVEL > 0) return;
+    public Logger(LogLevel logLevel) {
+        level = logLevel.level;
+    }
+
+    public void debug(String s) {
+        if (level > 0) return;
         System.out.println("[DEBUG] " + s);
     }
-    public static void info(String s) {
-        if (LEVEL > 1) return;
+
+    public void info(String s) {
+        if (level > 1) return;
         System.out.println("[INFO] " + s);
     }
-    public static void alert(String s) {
-        if (LEVEL > 2) return;
+
+    public void alert(String s) {
+        if (level > 2) return;
         System.out.println("[ALERT] " + s);
     }
-    public static void warn(String s) {
+
+    public void warn(String s) {
         System.err.println("[WARN] " + s);
     }
-    public static void error(String s) {
+
+    public void error(String s) {
         System.err.println("[ERROR] " + s);
         System.exit(-1);
     }
-    public static void error(Exception e) {
+
+    public void error(Exception e) {
         System.out.println("[ERROR] " + e.getMessage());
         e.printStackTrace();
         System.exit(-1);

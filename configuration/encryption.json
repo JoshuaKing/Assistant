@@ -1,7 +1,7 @@
 {
-  key: "examplekey",
-  iv: "exampleiv",
-  cipher: "AES",
-  mode: "CBC",
-  padding: "PKCS5PADDING"
+  "key": "Vt7RH7xR8l8+JAiuJICU6Q==",
+  "iv": "grrbebMf/EEqeeVJndPkQQ==",
+  "cipher": "AES",
+  "mode": "CBC",
+  "padding": "PKCS5PADDING"
 }
