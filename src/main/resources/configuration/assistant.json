@@ -10,7 +10,18 @@
       "module": "WestpacModule",
       "configuration": {
         "username": "pBfoiVjUvXcwuIJ3XzGPlQ==",
-        "password": "GhKmdq+u1w0hkrVBnBNRfw=="
+        "password": "GhKmdq+u1w0hkrVBnBNRfw==",
+        "networth": [ 50, 14, 1 ],
+        "account-1": {
+          "min": 150,
+          "topup": 100,
+          "from": 14
+        },
+        "account-14": {
+          "min": 500,
+          "topup": 500,
+          "from": 50
+        }
       }
     }
   ]

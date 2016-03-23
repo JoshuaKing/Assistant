@@ -1,12 +1,10 @@
 package configuration;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.stream.JsonReader;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Created by Josh on 23/03/2016.
@@ -14,12 +12,12 @@ import java.io.FileReader;
 abstract class FileConfiguration {
     private static final String CONFIG_DIR = "configuration/";
 
-    protected static JsonElement getJson(String filename) {
+    protected static JsonNode getJson(String filename) {
         try {
-            return new Gson().fromJson(new JsonReader(new FileReader(CONFIG_DIR + filename)), JsonElement.class);
-        } catch (FileNotFoundException e) {
+            return new ObjectMapper().readTree(new File(CONFIG_DIR + filename));
+        } catch (IOException e) {
             e.printStackTrace();
-            return new JsonObject();
+            return new ObjectMapper().createObjectNode();
         }
     }
 }

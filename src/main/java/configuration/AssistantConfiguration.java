@@ -1,7 +1,7 @@
 package configuration;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +11,7 @@ import java.util.Map;
  */
 public class AssistantConfiguration extends FileConfiguration {
     private static final String ASSISTANT_FILE = "assistant.json";
-    private static final JsonObject CONFIGURATION = FileConfiguration.getJson(ASSISTANT_FILE).getAsJsonObject();
+    private static final JsonNode CONFIGURATION = FileConfiguration.getJson(ASSISTANT_FILE);
     private static PersonalConfiguration personal;
     private static Map<String, ModuleConfiguration> modules;
 
@@ -26,7 +26,7 @@ public class AssistantConfiguration extends FileConfiguration {
         if (modules == null) {
             modules = new HashMap<>();
 
-            for (JsonElement element : CONFIGURATION.get("modules").getAsJsonArray()) {
+            for (JsonNode element : CONFIGURATION.get("modules")) {
                 ModuleConfiguration moduleConfiguration = ModuleConfiguration.from(element);
                 modules.put(moduleConfiguration.getName().toLowerCase(), moduleConfiguration);
             }

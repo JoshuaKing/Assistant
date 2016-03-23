@@ -1,27 +1,26 @@
 package configuration;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Created by Josh on 23/03/2016.
  */
 public class ModuleConfiguration {
     private final String name;
-    private final JsonObject config;
+    private final JsonNode config;
 
-    private ModuleConfiguration(String name, JsonObject config) {
+    private ModuleConfiguration(String name, JsonNode config) {
         this.name = name;
         this.config = config;
     }
 
-    public static ModuleConfiguration from(JsonElement json) {
-        String name = json.getAsJsonObject().get("module").getAsString();
-        JsonObject config = json.getAsJsonObject().get("configuration").getAsJsonObject();
+    public static ModuleConfiguration from(JsonNode json) {
+        String name = json.get("module").asText();
+        JsonNode config = json.get("configuration");
         return new ModuleConfiguration(name, config);
     }
 
-    public JsonObject getJsonConfiguration() {
+    public JsonNode getJsonConfiguration() {
         return config;
     }
 

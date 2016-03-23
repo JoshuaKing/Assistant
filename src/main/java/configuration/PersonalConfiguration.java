@@ -1,7 +1,6 @@
 package configuration;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Created by Josh on 23/03/2016.
@@ -12,15 +11,15 @@ public class PersonalConfiguration {
     private final String name;
     private final String dob;
 
-    private PersonalConfiguration(JsonObject personal) {
-        work = personal.get("work").getAsString();
-        home = personal.get("home").getAsString();
-        name = personal.get("name").getAsString();
-        dob = personal.get("dob").getAsString();
+    private PersonalConfiguration(JsonNode personal) {
+        work = personal.get("work").asText();
+        home = personal.get("home").asText();
+        name = personal.get("name").asText();
+        dob = personal.get("dob").asText();
     }
 
-    public static PersonalConfiguration from(JsonElement element) {
-        return new PersonalConfiguration(element.getAsJsonObject());
+    public static PersonalConfiguration from(JsonNode element) {
+        return new PersonalConfiguration(element);
     }
 
     public String getDob() {
