@@ -1,0 +1,7 @@
+{
+  key: "examplekey",
+  iv: "exampleiv",
+  cipher: "AES",
+  mode: "CBC",
+  padding: "PKCS5PADDING"
+}
