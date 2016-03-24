@@ -6,7 +6,6 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 
@@ -29,12 +28,20 @@ public abstract class AssistantModule {
     protected String getResource(String filename) {
         StringWriter stringWriter = new StringWriter();
         try {
-            IOUtils.copy(this.getClass().getResourceAsStream(moduleName + File.separator + filename), stringWriter, "UTF-8");
+            IOUtils.copy(getClass().getResourceAsStream("/" + moduleName + "/" + filename), stringWriter, "UTF-8");
         } catch (IOException e) {
             LOGGER.error("Error Loading resource");
             LOGGER.error(e.getMessage());
         }
         return stringWriter.toString();
+    }
+
+    protected String getResourcePath() {
+        return getResourcePath("");
+    }
+
+    protected String getResourcePath(String filepath) {
+        return getClass().getResource("/" + moduleName + "/" + filepath).getPath();
     }
 
     public abstract void run();
