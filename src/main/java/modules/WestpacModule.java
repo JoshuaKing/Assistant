@@ -11,7 +11,10 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -163,7 +166,7 @@ public class WestpacModule extends AssistantModule {
 
         double networth = balances.stream().mapToDouble(Double::new).sum();
         Instant now = Instant.now();
-        String networthStr = String.format("%d %s %.2f\n", now.getEpochSecond(), DateTimeFormatter.ISO_INSTANT.format(now), networth);
+        String networthStr = String.format("%d %s %.2f\n", now.toEpochMilli(), DateTimeFormatter.ISO_INSTANT.format(now), networth);
 
         try {
             new File(LOG_DIR).mkdirs();
