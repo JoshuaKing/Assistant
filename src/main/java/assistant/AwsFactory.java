@@ -9,7 +9,6 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.Region;
-import modules.AssistantModule;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -22,10 +21,8 @@ import java.io.StringWriter;
 public class AwsFactory {
     private final AWSCredentialsProviderChain credentialsProviderChain;
     private final AmazonS3 s3client;
-    private final Class<? extends AssistantModule> moduleClass;
 
-    public AwsFactory(Class<? extends AssistantModule> moduleClass) {
-        this.moduleClass = moduleClass;
+    public AwsFactory() {
         credentialsProviderChain = new DefaultAWSCredentialsProviderChain();
         credentialsProviderChain.setReuseLastProvider(true);
         s3client = new AmazonS3Client(getAwsCredentials());
@@ -36,21 +33,19 @@ public class AwsFactory {
     }
 
     public void createS3Bucket(String bucket) {
-        String fullBucketName = (moduleClass.getSimpleName() + "-" + bucket).toLowerCase();
-        if (!s3client.doesBucketExist(fullBucketName)) {
-            s3client.createBucket(fullBucketName, Region.AP_Sydney);
+        bucket = bucket.toLowerCase();
+        if (!s3client.doesBucketExist(bucket)) {
+            s3client.createBucket(bucket, Region.AP_Sydney);
         }
     }
 
     public PutObjectResult uploadToS3(String bucket, String key, File file) {
-        String fullBucketName = (moduleClass.getSimpleName() + "-" + bucket).toLowerCase();
-        return s3client.putObject(new PutObjectRequest(fullBucketName, key, file));
+        return s3client.putObject(new PutObjectRequest(bucket.toLowerCase(), key, file));
     }
 
     public String downloadFromS3(String bucket, String key) throws IOException {
-        String fullBucketName = (moduleClass.getSimpleName() + "-" + bucket).toLowerCase();
         StringWriter stringWriter = new StringWriter();
-        IOUtils.copy(s3client.getObject(new GetObjectRequest(fullBucketName, key)).getObjectContent(), stringWriter);
+        IOUtils.copy(s3client.getObject(new GetObjectRequest(bucket.toLowerCase(), key)).getObjectContent(), stringWriter);
         return stringWriter.toString();
     }
 }

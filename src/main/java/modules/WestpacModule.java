@@ -28,10 +28,11 @@ public class WestpacModule extends AssistantModule {
     private static final Logger LOGGER = LoggerFactory.getLogger(WestpacModule.class);
 
     private final String LOG_DIR = "logs/" + moduleName + "/";
-    private final String DASHBOARD_URL = "https://banking.westpac.com.au/secure/banking/overview/dashboard";
-    private final String LOGIN_URL = "https://online.westpac.com.au/esis/Login/SrvPage";
-    private final String TRANSFER_URL = "https://banking.westpac.com.au/secure/banking/overview/payments/transfers";
+    private static final String DASHBOARD_URL = "https://banking.westpac.com.au/secure/banking/overview/dashboard";
+    private static final String LOGIN_URL = "https://online.westpac.com.au/esis/Login/SrvPage";
+    private static final String TRANSFER_URL = "https://banking.westpac.com.au/secure/banking/overview/payments/transfers";
     private final JBrowserDriver DRIVER = GeneralFactory.createDefaultBrowser();
+    private static final String BUCKET = "networth.freshte.ch";
 
     public WestpacModule() {
         super(WestpacModule.class);
@@ -43,13 +44,13 @@ public class WestpacModule extends AssistantModule {
             if (!login()) return;
             ArrayNode accounts = accounts();
             if (accounts == null) return;
-            downloadFromS3("networth", "networth.log", LOG_DIR);
+            downloadFromS3(BUCKET, "networth.log", LOG_DIR);
             logNetworth(accounts);
             IntStream.range(0, accounts.size()).forEach(i -> transferAccount(i, accounts));
             LOGGER.info("Finished at " + DRIVER.getCurrentUrl());
-            uploadToS3("networth", LOG_DIR, "networth.log");
-            uploadToS3("networth", LOG_DIR, "networth.json");
-            uploadToS3("networth", getResourcePath(), "networth.html");
+            uploadToS3(BUCKET, LOG_DIR, "networth.log");
+            uploadToS3(BUCKET, LOG_DIR, "networth.json");
+            uploadToS3(BUCKET, getResourcePath(), "networth.html");
         } finally {
             LOGGER.info("Closing driver");
             DRIVER.quit();

@@ -34,7 +34,7 @@ public final class GeneralFactory {
 
     public static AwsFactory getAwsFactory(Class<? extends AssistantModule> module) {
         if (!awsFactories.containsKey(module)) {
-            awsFactories.put(module, new AwsFactory(module));
+            awsFactories.put(module, new AwsFactory());
         }
 
         return awsFactories.get(module);
