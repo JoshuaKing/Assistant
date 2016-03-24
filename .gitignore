@@ -2,5 +2,6 @@
 /configuration/encryption.json
 /src/main/resources/configuration/encryption.json
 /.idea
+/logs
 .idea/**
 /out
