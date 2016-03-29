@@ -62,6 +62,7 @@ public class WestpacModule extends AssistantModule {
         } finally {
             LOGGER.info("Closing driver");
             try {
+                DRIVER.cookies.empty();
                 DRIVER.close();
             } catch (IOException e) {
                 LOGGER.warn("Could not close driver properly: " + e.getMessage());
