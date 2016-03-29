@@ -11,8 +11,8 @@
       "configuration": {
         "username": "pBfoiVjUvXcwuIJ3XzGPlQ==",
         "password": "GhKmdq+u1w0hkrVBnBNRfw==",
-        "networth": [ 50, 14, 1 ],
-        "account-1": {
+        "networth": [ 50, 14, 30 ],
+        "account-30": {
           "min": 150,
           "topup": 100,
           "from": 14

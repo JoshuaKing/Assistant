@@ -1,6 +1,6 @@
 package assistant;
 
-import com.machinepublishers.jbrowserdriver.JBrowserDriver;
+import com.jaunt.UserAgent;
 import configuration.EncryptionConfiguration;
 import encrypt.AesCipher;
 import encrypt.Cipher;
@@ -28,8 +28,8 @@ public final class GeneralFactory {
         return cipher;
     }
 
-    public static JBrowserDriver createDefaultBrowser() {
-        return new JBrowserDriver();
+    public static UserAgent createDefaultBrowser() {
+        return new UserAgent();
     }
 
     public static AwsFactory getAwsFactory(Class<? extends AssistantModule> module) {

@@ -3,11 +3,16 @@ package modules;
 import assistant.AwsFactory;
 import assistant.GeneralFactory;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.machinepublishers.jbrowserdriver.JBrowserDriver;
+import com.jaunt.JNode;
+import com.jaunt.NotFound;
+import com.jaunt.ResponseException;
+import com.jaunt.UserAgent;
+import com.jaunt.component.Form;
 import org.apache.commons.io.IOUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,24 +20,27 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.Map;
 
 /**
  * Created by Josh on 17/02/2016.
  */
 public class WestpacModule extends AssistantModule {
     private static final Logger LOGGER = LoggerFactory.getLogger(WestpacModule.class);
-
-    private final String LOG_DIR = "logs/" + moduleName + "/";
-    private static final String DASHBOARD_URL = "https://banking.westpac.com.au/secure/banking/overview/dashboard";
-    private static final String LOGIN_URL = "https://online.westpac.com.au/esis/Login/SrvPage";
-    private static final String TRANSFER_URL = "https://banking.westpac.com.au/secure/banking/overview/payments/transfers";
-    private final JBrowserDriver DRIVER = GeneralFactory.createDefaultBrowser();
+    private static final String BANK_BASE_URL = "https://banking.westpac.com.au";
+    private static final String DASHBOARD_PATH = "/secure/banking/overview/dashboard";
+    private static final String COMMUNICATIONS_PATH = "/eam/servlet/getEamInterfaceData";
+    private static final String TRANSFERS_PATH = "/secure/banking/overview/payments/transfers";
     private static final String BUCKET = "networth.freshte.ch";
+
+    private final UserAgent DRIVER = GeneralFactory.createDefaultBrowser();
+    private final String LOG_DIR = "/tmp/assistant/logs/" + moduleName + "/";
 
     public WestpacModule() {
         super(WestpacModule.class);
@@ -42,18 +50,22 @@ public class WestpacModule extends AssistantModule {
     public void run() {
         try {
             if (!login()) return;
-            ArrayNode accounts = accounts();
+            List<Account> accounts = accounts();
             if (accounts == null) return;
             downloadFromS3(BUCKET, "networth.log", LOG_DIR);
             logNetworth(accounts);
-            IntStream.range(0, accounts.size()).forEach(i -> transferAccount(i, accounts));
-            LOGGER.info("Finished at " + DRIVER.getCurrentUrl());
+            accounts.forEach(a -> transferAccount(a, accounts));
+            LOGGER.info("Finished at " + DRIVER.getLocation());
             uploadToS3(BUCKET, LOG_DIR, "networth.log");
             uploadToS3(BUCKET, LOG_DIR, "networth.json");
             uploadToS3(BUCKET, getResourcePath(), "networth.html");
         } finally {
             LOGGER.info("Closing driver");
-            DRIVER.quit();
+            try {
+                DRIVER.close();
+            } catch (IOException e) {
+                LOGGER.warn("Could not close driver properly: " + e.getMessage());
+            }
         }
     }
 
@@ -77,95 +89,121 @@ public class WestpacModule extends AssistantModule {
         }
     }
 
+    private String obfuscate(String text, Map<Character, Integer> conversionMap, String malgm) {
+        String obfuscated = "";
+        for (int i = 0; i < text.length(); i++) {
+            int index = conversionMap.get(text.toUpperCase().charAt(i));
+            obfuscated += malgm.charAt(index);
+        }
+        return obfuscated;
+    }
+
     private boolean login() {
         LOGGER.info("Logging in");
-        DRIVER.get(LOGIN_URL);
-        disableAsync();
-        DRIVER.findElementById("username_temp").sendKeys(getUsername());
-        for (int i = 0; i < getPassword().length(); i++) {
-            char c = getPassword().toUpperCase().charAt(i);
-            DRIVER.findElementById("keypad_0_kp" + c).click();
-        }
-        DRIVER.findElementById("btn-submit").click();
-        while (DRIVER.getCurrentUrl().equals(LOGIN_URL) && !DRIVER.getTitle().contains("Sign in error")) {
-            try {
-                LOGGER.warn("Waiting...");
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                // Just interruption
+        try {
+            DRIVER.sendGET(BANK_BASE_URL + COMMUNICATIONS_PATH);
+            String malgm = DRIVER.json.get("keymap").get("malgm").toString();
+            String halgm = DRIVER.json.get("keymap").get("halgm").toString();
+            Map<Character, Integer> conversionMap = new HashMap<>();
+            for(JNode keymap : DRIVER.json.get("keymap").get("keys")) {
+                JNode node = keymap.iterator().next();
+                conversionMap.put(node.getName().charAt(0), node.toInt());
             }
-        }
-        if (DRIVER.getCurrentUrl().equals(DASHBOARD_URL)) {
+            String obfuscated = obfuscate(getPassword(), conversionMap, malgm);
+            String url = DRIVER.json.get("operations").get(1).get("submitToUri").toString().replaceAll("\\\\/", "/");
+            DRIVER.sendPOST(BANK_BASE_URL + url, "username=" + getUsername() + "&brand=WPAC&password=" + obfuscated + "&halgm=" + URLEncoder.encode(halgm, "UTF-8"));
+            if (!DRIVER.getLocation().startsWith(BANK_BASE_URL + DASHBOARD_PATH)) return false;
             LOGGER.info("Logged In Successfully");
             return true;
-        } else {
-            LOGGER.error("Did not log in successfully: " + DRIVER.getCurrentUrl());
+        } catch (Exception e) {
+            LOGGER.error("Could not log in: " + e.getMessage());
             return false;
         }
     }
 
-    private void disableAsync() {
-        DRIVER.executeScript("jQuery.ajaxSetup({async: false});");
-    }
-
-    private JsonNode executeJs(String filename, Object... args) {
+    private List<Account> accounts() {
         try {
-            String js = getResource(filename);
-            Object result = DRIVER.executeScript(js, args);
-            if (result == null) return null;
-            return new ObjectMapper().readTree(result.toString());
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage());
-            return new ObjectMapper().createObjectNode();
-        }
-    }
+            Document document = Jsoup.parse(DRIVER.getSource());
+            List<Account> accounts = new ArrayList<>();
+            for (Element e : document.select(".account-tile")) {
+                e.select(".balance dd.CurrentBalance").first().children().remove();
+                e.select(".account-info p").first().children().remove();
 
-    private ArrayNode accounts() {
-        disableAsync();
-        try {
-            return (ArrayNode) executeJs("GetAccounts.js");
+                Account account = new Account();
+                account.name = e.select(".account-info h2").text().trim();
+                account.type = e.parent().attr("data-analytics-productgroupname").trim();
+                account.id = e.select(".account-info p").html().trim();
+                account.humanBalance = String.valueOf(e.select(".balance dd.CurrentBalance").text().trim());
+                account.balance = Double.valueOf(account.humanBalance.replaceAll("[$, ]", ""));
+
+                String hashString = account.id.replaceAll("[ ]+", "-");
+                int hashcode = 0;
+                for (int i = 0; i < hashString.length(); i++) {
+                    char c = hashString.charAt(i);
+                    hashcode = c + (hashcode << 6) + (hashcode << 16) - hashcode;
+                }
+                account.hashcode = Math.abs(hashcode % 53);
+                accounts.add(account);
+                //LOGGER.info("Account " + new ObjectMapper().writeValueAsString(account));
+            }
+            return accounts;
         } catch (Exception e) {
             LOGGER.error("Error getting account information: " + e.getClass().getSimpleName());
             return null;
         }
     }
 
-    private void transferAccount(int i, ArrayNode accounts) {
-        ObjectNode toAccount = (ObjectNode) accounts.get(i);
-        JsonNode settingsElement = configuration.get("account-" + toAccount.get("hashcode").asInt());
+    private void transferAccount(Account toAccount, List<Account> accounts) {
+        JsonNode settingsElement = configuration.get("account-" + toAccount.hashcode);
         if (settingsElement == null) return;
         ObjectNode settings = (ObjectNode) settingsElement;
-        LOGGER.info("Checking account " + toAccount.get("name").asText());
-        if (toAccount.get("balance").asDouble() >= settings.get("min").asDouble()) return;
+        LOGGER.info("Checking account " + toAccount.name);
+        if (toAccount.balance >= settings.get("min").asDouble()) return;
 
-        ObjectNode fromAccount = toAccount;
-        for (JsonNode account : accounts) {
-            if (account.get("hashcode").asInt() == settings.get("from").asInt()) {
-                fromAccount = (ObjectNode) account;
+        Account findAccount = toAccount;
+        for (Account account : accounts) {
+            if (account.hashcode == settings.get("from").asInt()) {
+                findAccount = account;
                 break;
             }
         }
-        LOGGER.info("Initiating transfer: $" + settings.get("topup").asDouble() + " from " + fromAccount.get("name").asText() + " to " + toAccount.get("name").asText());
+        final Account fromAccount = findAccount;
         if (fromAccount == toAccount) return;
+        LOGGER.info("Initiating transfer: $" + settings.get("topup").asDouble() + " from " + fromAccount.name + " to " + toAccount.name);
 
-        DRIVER.get(TRANSFER_URL);
-        disableAsync();
-        JsonNode result = executeJs("AccountTransfer.js", fromAccount.get("id").asInt(), toAccount.get("id").asInt(), settings.get("topup").asDouble(), settings.get("min").asDouble());
-        LOGGER.info(result.toString());
-    }
-
-    private void logNetworth(ArrayNode accounts) {
-        List<Double> balances = new ArrayList<>();
-        for (JsonNode account : accounts) {
-            configuration.get("networth").forEach(n -> {
-                if (account.get("hashcode").asInt() == n.asInt()) {
-                    LOGGER.info("Adding networth account " + account.get("name").asText());
-                    balances.add(account.get("balance").asDouble());
-                }
-            });
+        try {
+            DRIVER.sendGET(BANK_BASE_URL + TRANSFERS_PATH);
+        } catch (ResponseException e) {
+            LOGGER.error("Could not access transfer URL: " + e.getMessage());
         }
 
-        double networth = balances.stream().mapToDouble(Double::new).sum();
+        try {
+            Document document = Jsoup.parse(DRIVER.getSource());
+            Element fromAccountElement = document.select("#Form_FromAccountGuid option").stream().filter(e -> e.html().contains(fromAccount.id)).findFirst().get();
+            Element toAccountElement = document.select("#Form_FromAccountGuid option").stream().filter(e -> e.html().contains(fromAccount.id)).findFirst().get();
+            Form form = DRIVER.doc.getForm(0);
+            form.setSelect("Form.FromAccountGuid", fromAccountElement.val());
+            form.setSelect("Form.ToAccountGuid", toAccountElement.val());
+            form.set("Form.FromDescription", "AutoTopup <$" + settings.get("topup").asText());
+            form.setCheckBox("SameAsFromAccount", true);
+            form.set("Form.Amount", settings.get("topup").asText());
+            form.submit();
+            if (DRIVER.json.get("isSuccessful").toBoolean()) {
+                LOGGER.info("Transferred successfully");
+            } else {
+                LOGGER.error("Could not transfer: " + DRIVER.json);
+            }
+        } catch (NotFound e) {
+            LOGGER.error("Could not find element: " + e.getMessage());
+        } catch (ResponseException e) {
+            LOGGER.error("Could not complete transfer: " + e.getMessage());
+        }
+    }
+
+    private void logNetworth(List<Account> accounts) {
+        List<Integer> networthList = new ArrayList<>();
+        configuration.get("networth").forEach(n -> networthList.add(n.asInt()));
+        double networth = accounts.stream().filter(a -> networthList.contains(a.hashcode)).mapToDouble(a -> a.balance).sum();
         Instant now = Instant.now();
         String networthStr = String.format("%d %s %.2f\n", now.toEpochMilli(), DateTimeFormatter.ISO_INSTANT.format(now), networth);
 
@@ -177,6 +215,7 @@ public class WestpacModule extends AssistantModule {
             FileWriter logWriter = new FileWriter(LOG_DIR + "networth.log", true);
             logWriter.write(networthStr);
             logWriter.close();
+            LOGGER.info("Networth: $" + String.format("%.2f", networth));
         } catch (IOException e) {
             LOGGER.error("Couldn't write to networth.log: " + e.getMessage());
         }
@@ -221,6 +260,7 @@ public class WestpacModule extends AssistantModule {
         try {
             AwsFactory awsFactory = GeneralFactory.getAwsFactory(WestpacModule.class);
             String content = awsFactory.downloadFromS3(bucket, filename);
+            new File(path).mkdirs();
             FileWriter writer = new FileWriter(path + filename);
             writer.write(content);
             writer.close();
@@ -228,5 +268,14 @@ public class WestpacModule extends AssistantModule {
         } catch (Exception e) {
             LOGGER.warn("Could not download " + bucket + ":" + filename + " from S3 to " + path + ": " + e.getMessage());
         }
+    }
+
+    private class Account {
+        public String name;
+        public String type;
+        public String humanBalance;
+        public double balance;
+        public int hashcode;
+        public String id;
     }
 }
