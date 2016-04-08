@@ -6,7 +6,7 @@
 
     <groupId>com.freshte.ch</groupId>
     <artifactId>Assistant</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 
     <properties>
         <log4j.configuration>log4j.properties</log4j.configuration>

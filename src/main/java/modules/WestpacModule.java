@@ -181,7 +181,7 @@ public class WestpacModule extends AssistantModule {
         try {
             Document document = Jsoup.parse(DRIVER.getSource());
             Element fromAccountElement = document.select("#Form_FromAccountGuid option").stream().filter(e -> e.html().contains(fromAccount.id)).findFirst().get();
-            Element toAccountElement = document.select("#Form_FromAccountGuid option").stream().filter(e -> e.html().contains(fromAccount.id)).findFirst().get();
+            Element toAccountElement = document.select("#Form_ToAccountGuid option").stream().filter(e -> e.html().contains(toAccount.id)).findFirst().get();
             Form form = DRIVER.doc.getForm(0);
             form.setSelect("Form.FromAccountGuid", fromAccountElement.val());
             form.setSelect("Form.ToAccountGuid", toAccountElement.val());
